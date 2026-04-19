@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Growthlytics.id - Dashboard Penjualan UMKM</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #1e293b; }
+        .glass-card { background: white; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .premium-gradient { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); }
+        .ai-gradient { background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); }
+        .loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.9); z-index: 100; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+    <div id="loading" class="loading-overlay hidden">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+        <p class="text-slate-600 font-bold" id="loadingText">Mengolah Seluruh Data...</p>
+    </div>
+
+    <div class="flex flex-col lg:flex-row min-h-screen">
+        <!-- Sidebar -->
+        <aside class="w-full lg:w-64 bg-white border-r border-slate-200 p-6 space-y-8 lg:block hidden shrink-0">
+            <div class="flex items-center space-x-2">
+                <div class="w-8 h-8 premium-gradient rounded-lg flex items-center justify-center text-white font-bold shadow-lg">G</div>
+                <h1 class="text-xl font-bold tracking-tight text-slate-800">Growthlytics<span class="text-blue-600">.id</span></h1>
+            </div>
+            <nav class="space-y-1">
+                <div class="flex items-center space-x-3 p-3 rounded-xl bg-blue-50 text-blue-600 font-bold">
+                    <i class="fas fa-chart-line"></i> <span>Business Review</span>
+                </div>
+                <div class="p-3 text-slate-400 text-[10px] font-bold uppercase tracking-wider">Laporan AI</div>
+                <div id="aiStatus" class="flex items-center space-x-2 px-3 text-emerald-500 text-[10px] font-bold">
+                    <span class="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></span>
+                    <span>ANALYTICS ACTIVE</span>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-4 lg:p-8 space-y-6 overflow-x-hidden">
+            <header class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-2xl font-extrabold text-slate-800 tracking-tight">Dashboard Penjualan UMKM</h2>
+                    <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Support by: <span class="text-blue-600">growthlytics.id</span></p>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <button id="refreshBtn" class="flex items-center space-x-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-bold hover:bg-slate-50 shadow-sm transition-all">
+                        <i class="fas fa-sync-alt" id="refreshIcon"></i> <span>Refresh Data</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- All-Time KPIs -->
+            <div class="p-4 bg-blue-600 rounded-2xl text-white shadow-xl flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="flex items-center space-x-4">
+                    <div class="bg-white/20 p-3 rounded-xl"><i class="fas fa-database text-2xl"></i></div>
+                    <div>
+                        <h3 class="text-xs font-bold uppercase tracking-widest opacity-80">Total Penjualan (All-Time)</h3>
+                        <p class="text-2xl font-black" id="allTimeSales">Rp0</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 gap-6 text-center">
+                    <div><p class="text-[10px] uppercase opacity-70">Nota</p><p class="font-bold" id="allTimeTrans">0</p></div>
+                    <div><p class="text-[10px] uppercase opacity-70">Unit</p><p class="font-bold" id="allTimeQty">0</p></div>
+                    <div><p class="text-[10px] uppercase opacity-70">AOV</p><p class="font-bold" id="allTimeAov">Rp0</p></div>
+                </div>
+            </div>
+
+            <!-- Global Product Ranking (Added Feature) -->
+            <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="glass-card overflow-hidden">
+                    <div class="p-4 bg-emerald-50 border-b border-emerald-100">
+                        <h4 class="text-xs font-black uppercase tracking-widest text-emerald-700 flex items-center">
+                            <i class="fas fa-crown mr-2"></i> Top 5 Produk Terlaris (Global)
+                        </h4>
+                    </div>
+                    <div id="topProductsList" class="p-4 space-y-3">
+                        <!-- Content via JS -->
+                    </div>
+                </div>
+                <div class="glass-card overflow-hidden">
+                    <div class="p-4 bg-rose-50 border-b border-rose-100">
+                        <h4 class="text-xs font-black uppercase tracking-widest text-rose-700 flex items-center">
+                            <i class="fas fa-exclamation-triangle mr-2"></i> 5 Produk Penjualan Terendah (Global)
+                        </h4>
+                    </div>
+                    <div id="bottomProductsList" class="p-4 space-y-3">
+                        <!-- Content via JS -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Business Review Table -->
+            <section class="glass-card overflow-hidden">
+                <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+                    <h4 class="font-extrabold text-slate-800 text-sm uppercase tracking-wider">Trend Business Review Bulanan</h4>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-slate-50 text-slate-500 text-[10px] uppercase font-bold">
+                            <tr>
+                                <th class="px-6 py-4">Bulan</th>
+                                <th class="px-6 py-4 text-right">Omzet</th>
+                                <th class="px-6 py-4 text-center">Nota</th>
+                                <th class="px-6 py-4 text-center">Unit</th>
+                                <th class="px-6 py-4">Top Produk</th>
+                                <th class="px-6 py-4">Slow Produk</th>
+                            </tr>
+                        </thead>
+                        <tbody id="monthlyTrendBody" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Charts Section -->
+            <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Kategori -->
+                <div class="glass-card p-6">
+                    <h4 class="font-bold text-slate-800 mb-6 text-xs uppercase tracking-wider flex items-center">
+                        <i class="fas fa-tag mr-2 text-blue-500"></i> Kategori Produk (By Transaksi)
+                    </h4>
+                    <div class="h-[200px]"><canvas id="catChart"></canvas></div>
+                    <div id="catLegend" class="mt-4 space-y-1.5 max-h-[120px] overflow-y-auto"></div>
+                </div>
+                <!-- Channel -->
+                <div class="glass-card p-6">
+                    <h4 class="font-bold text-slate-800 mb-6 text-xs uppercase tracking-wider flex items-center">
+                        <i class="fas fa-store mr-2 text-emerald-500"></i> Channel Pembelian (By Transaksi)
+                    </h4>
+                    <div class="h-[200px]"><canvas id="chanChart"></canvas></div>
+                    <div id="chanLegend" class="mt-4 space-y-1.5 max-h-[120px] overflow-y-auto"></div>
+                </div>
+                <!-- Metode Bayar -->
+                <div class="glass-card p-6">
+                    <h4 class="font-bold text-slate-800 mb-6 text-xs uppercase tracking-wider flex items-center">
+                        <i class="fas fa-wallet mr-2 text-orange-500"></i> Metode Pembayaran (By Transaksi)
+                    </h4>
+                    <div class="h-[200px]"><canvas id="methChart"></canvas></div>
+                    <div id="methLegend" class="mt-4 space-y-1.5 max-h-[120px] overflow-y-auto"></div>
+                </div>
+            </section>
+
+            <!-- Export & AI Section -->
+            <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="glass-card p-8 bg-slate-900 text-white">
+                    <h4 class="text-sm font-black uppercase tracking-widest mb-2">Detailed Monthly PDF Report</h4>
+                    <p class="text-xs text-slate-400 mb-6">Laporan lengkap: Resume Global, Tren Kronologis, dan Detail Transaksi.</p>
+                    <button id="downloadPdf" class="w-full py-4 bg-blue-600 hover:bg-blue-700 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center">
+                        <i class="fas fa-file-pdf mr-2"></i> Export Full Detailed PDF
+                    </button>
+                </div>
+                <div class="glass-card p-8 bg-white border-2 border-purple-100">
+                    <h4 class="text-sm font-black uppercase tracking-widest text-slate-800 mb-2">Strategic Insight AI</h4>
+                    <p id="aiSummaryText" class="text-xs text-slate-600 italic mb-6">Menganalisis langkah strategis untuk bisnis Anda...</p>
+                    <button id="askAiBtn" class="w-full py-4 ai-gradient text-white rounded-xl font-bold text-xs uppercase tracking-widest transition-all">
+                        <i class="fas fa-brain mr-2"></i> Generate Strategic Insights
+                    </button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        const apiKey = "";
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwLSgFczClShKjVnWBXO_ClGVqSHOmZjjcHL2h7K_wMgz-y9DTk3ZdyH9XK0H7yNPgJCg/exec";
+        
+        let reportData = {
+            allTime: { s: 0, q: 0, t: 0, aov: 0 },
+            monthly: {}, 
+            categories: {}, 
+            channels: {},   
+            methods: {},    
+            allProducts: {},
+            rawData: [],
+            aiInsight: ""
+        };
+
+        const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+
+        function toggleLoader(show, text = "Sinkronisasi...") {
+            const loader = document.getElementById('loading');
+            if (loader) {
+                document.getElementById('loadingText').innerText = text;
+                loader.classList.toggle('hidden', !show);
+            }
+        }
+
+        function formatIDR(v) { return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(v); }
+        function parseNum(v) { return parseFloat(v?.toString().replace(/[^0-9.-]+/g, "")) || 0; }
+
+        async function loadData() {
+            toggleLoader(true, "Mengambil data...");
+            try {
+                const res = await fetch(`${WEB_APP_URL}?t=${Date.now()}`);
+                const data = await res.json();
+                reportData.rawData = data;
+                processData(data);
+                toggleLoader(false);
+            } catch (err) { 
+                console.error(err); 
+                toggleLoader(false); 
+            }
+        }
+
+        function processData(data) {
+            reportData.allTime = { s: 0, q: 0, t: 0, aov: 0 };
+            reportData.monthly = {};
+            reportData.categories = {};
+            reportData.channels = {};
+            reportData.methods = {};
+            reportData.allProducts = {};
+            
+            const transSet = new Set();
+            const uniqueTransMap = new Map();
+
+            data.forEach(item => {
+                const s = parseNum(item['Total']);
+                const q = parseNum(item['Qty']);
+                const p = item['Nama Produk'] || "N/A";
+                const cat = item['Kategori'] || "Lainnya";
+                const chan = item['Channel'] || item['Platform'] || item['Saluran'] || "Toko";
+                const meth = item['Metode Pembayaran'] || item['Metode'] || item['Pembayaran'] || item['Payment'] || "Cash";
+                const tId = item['ID Transaksi'] || `TRX-${Math.random()}`;
+                
+                // Track Global Product Quantity
+                reportData.allProducts[p] = (reportData.allProducts[p] || 0) + q;
+
+                const dateParts = item['Tanggal']?.split(/[/-]/);
+                if (dateParts && dateParts.length >= 3) {
+                    const m = parseInt(dateParts[1]), y = parseInt(dateParts[2]);
+                    const key = `${y}-${m.toString().padStart(2, '0')}`;
+                    
+                    if (!reportData.monthly[key]) {
+                        reportData.monthly[key] = { s: 0, q: 0, transSet: new Set(), cats: {}, products: {}, chans: {}, meths: {} };
+                    }
+                    
+                    const mon = reportData.monthly[key];
+                    mon.s += s;
+                    mon.q += q;
+                    mon.transSet.add(tId);
+                    mon.products[p] = (mon.products[p] || 0) + q;
+
+                    reportData.allTime.s += s;
+                    reportData.allTime.q += q;
+                    transSet.add(tId);
+
+                    if (!uniqueTransMap.has(tId)) {
+                        uniqueTransMap.set(tId, { cat, chan, meth });
+                        reportData.categories[cat] = (reportData.categories[cat] || 0) + 1;
+                        reportData.channels[chan] = (reportData.channels[chan] || 0) + 1;
+                        reportData.methods[meth] = (reportData.methods[meth] || 0) + 1;
+                        mon.cats[cat] = (mon.cats[cat] || 0) + 1;
+                        mon.chans[chan] = (mon.chans[chan] || 0) + 1;
+                        mon.meths[meth] = (mon.meths[meth] || 0) + 1;
+                    }
+                }
+            });
+
+            reportData.allTime.t = transSet.size;
+            reportData.allTime.aov = reportData.allTime.s / (transSet.size || 1);
+            updateUI();
+        }
+
+        function updateUI() {
+            const at = reportData.allTime;
+            document.getElementById('allTimeSales').innerText = formatIDR(at.s);
+            document.getElementById('allTimeTrans').innerText = at.t;
+            document.getElementById('allTimeQty').innerText = at.q;
+            document.getElementById('allTimeAov').innerText = formatIDR(at.aov);
+
+            // Update Global Product Ranking
+            const sortedProducts = Object.entries(reportData.allProducts).sort((a,b) => b[1] - a[1]);
+            const top5 = sortedProducts.slice(0, 5);
+            const bottom5 = sortedProducts.slice(-5).reverse();
+
+            const maxQty = top5[0]?.[1] || 1;
+
+            document.getElementById('topProductsList').innerHTML = top5.map((p, i) => `
+                <div class="flex items-center space-x-3">
+                    <span class="text-xs font-black text-slate-300 w-4">${i+1}</span>
+                    <div class="flex-1">
+                        <div class="flex justify-between text-[11px] mb-1">
+                            <span class="font-bold text-slate-700">${p[0]}</span>
+                            <span class="text-emerald-600 font-black">${p[1]} Unit</span>
+                        </div>
+                        <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                            <div class="bg-emerald-500 h-full" style="width: ${(p[1]/maxQty)*100}%"></div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('bottomProductsList').innerHTML = bottom5.map((p, i) => `
+                <div class="flex items-center space-x-3 opacity-80">
+                    <span class="text-xs font-black text-slate-300 w-4">${sortedProducts.length - i}</span>
+                    <div class="flex-1">
+                        <div class="flex justify-between text-[11px] mb-1">
+                            <span class="font-semibold text-slate-600">${p[0]}</span>
+                            <span class="text-rose-600 font-black">${p[1]} Unit</span>
+                        </div>
+                        <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                            <div class="bg-rose-400 h-full" style="width: ${(p[1]/maxQty)*100}%"></div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            const sortedMonths = Object.keys(reportData.monthly).sort().reverse();
+            document.getElementById('monthlyTrendBody').innerHTML = sortedMonths.map(key => {
+                const mData = reportData.monthly[key];
+                const [y, m] = key.split('-');
+                const sortedP = Object.entries(mData.products).sort((a,b) => b[1] - a[1]);
+                const topP = sortedP[0]?.[0] || "-";
+                const slowP = sortedP.length > 1 ? sortedP[sortedP.length - 1][0] : "-";
+
+                return `
+                    <tr>
+                        <td class="px-6 py-4 font-bold text-slate-700">${monthNames[parseInt(m)-1]} ${y}</td>
+                        <td class="px-6 py-4 text-right font-black text-blue-600">${formatIDR(mData.s)}</td>
+                        <td class="px-6 py-4 text-center">${mData.transSet.size}</td>
+                        <td class="px-6 py-4 text-center">${mData.q}</td>
+                        <td class="px-6 py-4 text-xs font-semibold text-emerald-600">${topP}</td>
+                        <td class="px-6 py-4 text-xs font-semibold text-rose-600">${slowP}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            renderCharts();
+        }
+
+        function createChart(id, data, legendId, colors) {
+            const canvas = document.getElementById(id + 'Chart');
+            if(!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const labels = Object.keys(data);
+            const values = Object.values(data);
+            const total = values.length > 0 ? values.reduce((a,b) => a+b, 0) : 1;
+
+            if(window[id + 'Instance']) window[id + 'Instance'].destroy();
+            window[id + 'Instance'] = new Chart(ctx, {
+                type: 'doughnut',
+                data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor: '#ffffff' }] },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    cutout: '70%',
+                    plugins: { legend: { display: false } } 
+                }
+            });
+
+            document.getElementById(legendId).innerHTML = labels.map((l, i) => `
+                <div class="flex justify-between text-[10px] items-center">
+                    <span class="truncate w-24 flex items-center">
+                        <span class="w-2 h-2 rounded-full mr-2" style="background:${colors[i%colors.length]}"></span>
+                        ${l}
+                    </span>
+                    <span class="font-bold">${((values[i]/total)*100).toFixed(2)}%</span>
+                </div>
+            `).join('');
+        }
+
+        function renderCharts() {
+            const colors1 = ['#2563eb', '#3b82f6', '#60a5fa', '#93c5fd', '#bfdbfe']; 
+            const colors2 = ['#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#d1fae5']; 
+            const colors3 = ['#f59e0b', '#fbbf24', '#fcd34d', '#fde68a', '#fef3c7']; 
+            
+            createChart('cat', reportData.categories, 'catLegend', colors1);
+            createChart('chan', reportData.channels, 'chanLegend', colors2);
+            createChart('meth', reportData.methods, 'methLegend', colors3);
+        }
+
+        async function generateAiInsight() {
+            if(!reportData.rawData.length) return;
+            toggleLoader(true, "Menganalisis Strategi Bisnis...");
+            
+            const sortedGlobal = Object.entries(reportData.allProducts).sort((a,b) => b[1] - a[1]);
+            const top3Global = sortedGlobal.slice(0, 3).map(x => x[0]);
+            const bottom3Global = sortedGlobal.slice(-3).map(x => x[0]);
+
+            const summaryData = {
+                omzet: formatIDR(reportData.allTime.s),
+                jumlahNota: reportData.allTime.t,
+                top3Produk: top3Global,
+                bottom3Produk: bottom3Global,
+                palingBanyakKategori: Object.entries(reportData.categories).sort((a,b)=>b[1]-a[1])[0]?.[0]
+            };
+
+            const prompt = `Bertindaklah sebagai Konsultan Pertumbuhan Bisnis Senior dari Growthlytics.id. 
+            Gunakan gaya bahasa yang PROFESIONAL, FORMAL, namun PRAKTIS dan MUDAH DIPAHAMI oleh pengusaha UMKM. 
+            Hindari gaya bahasa yang terlalu santai atau menggunakan istilah pasar. Gunakan diksi yang menunjukkan otoritas dan keahlian.
+            Berdasarkan data: Omzet ${summaryData.omzet}, Total ${summaryData.jumlahNota} transaksi.
+            Produk Hero (Top): ${summaryData.top3Produk.join(', ')}. 
+            Produk Slow (Bottom): ${summaryData.bottom3Produk.join(', ')}.
+            Berikan 10 INSIGHT STRATEGIS untuk meningkatkan performa bisnis. 
+            Fokus pada: Optimalisasi perputaran stok (inventory turnover), efektivitas saluran penjualan, dan manajemen arus kas melalui metode pembayaran. 
+            Format poin 1-10 dengan judul poin yang kuat dan penjelasan ringkas namun berbobot.`;
+
+            try {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+                const result = await res.json();
+                reportData.aiInsight = result.candidates?.[0]?.content?.parts?.[0]?.text || "Maaf, terjadi kendala teknis dalam analisis.";
+                document.getElementById('aiSummaryText').innerText = "10 Strategi Bisnis telah dirumuskan secara profesional.";
+                toggleLoader(false);
+            } catch (err) { 
+                console.error(err); 
+                toggleLoader(false); 
+            }
+        }
+
+        document.getElementById('downloadPdf').addEventListener('click', async () => {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('p', 'mm', 'a4');
+            const at = reportData.allTime;
+            
+            doc.setFillColor(37, 99, 235); doc.rect(0, 0, 210, 40, 'F');
+            doc.setTextColor(255, 255, 255); doc.setFontSize(22); doc.setFont("helvetica", "bold");
+            doc.text("EXECUTIVE BUSINESS REPORT", 14, 20);
+            doc.setFontSize(9); doc.setFont("helvetica", "normal");
+            doc.text(`Periode Laporan: Kumulatif | Dicetak: ${new Date().toLocaleDateString('id-ID')}`, 14, 28);
+
+            doc.setFillColor(248, 250, 252); doc.roundedRect(14, 45, 182, 30, 3, 3, 'F');
+            doc.setTextColor(30, 41, 59); doc.setFontSize(10); doc.text("RINGKASAN PERFORMA GLOBAL", 20, 53);
+            doc.setFontSize(14); doc.setFont("helvetica", "bold");
+            doc.text(formatIDR(at.s), 20, 65); doc.text(`${at.t} Transaksi`, 90, 65); doc.text(`${at.q} Unit Terjual`, 160, 65);
+            doc.setFontSize(8); doc.setFont("helvetica", "normal");
+            doc.text("Total Omzet Penjualan", 20, 70); doc.text("Volume Transaksi", 90, 70); doc.text("Volume Produk", 160, 70);
+
+            // Ranking Produk di PDF
+            doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(37, 99, 235);
+            doc.text("TOP 5 PRODUK TERLARIS (KUMULATIF)", 14, 85);
+            const sortedP = Object.entries(reportData.allProducts).sort((a,b)=>b[1]-a[1]);
+            doc.autoTable({
+                startY: 90,
+                head: [['No', 'Nama Produk', 'Total Unit Terjual']],
+                body: sortedP.slice(0, 5).map((p, i) => [i+1, p[0], `${p[1]} Unit`]),
+                theme: 'striped', headStyles: { fillColor: [16, 185, 129] }
+            });
+
+            const sortedMonths = Object.keys(reportData.monthly).sort(); 
+            doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(30, 41, 59);
+            doc.text("ANALISIS TREN BULANAN", 14, doc.lastAutoTable.finalY + 10);
+            doc.autoTable({
+                startY: doc.lastAutoTable.finalY + 15,
+                head: [['Bulan', 'Omzet', 'Transaksi', 'Volume', 'Produk Unggulan']],
+                body: sortedMonths.map(k => {
+                    const m = reportData.monthly[k];
+                    const [y, mm] = k.split('-');
+                    const topP = Object.entries(m.products).sort((a,b)=>b[1]-a[1])[0]?.[0] || "-";
+                    return [`${monthNames[parseInt(mm)-1]} ${y}`, formatIDR(m.s), m.transSet.size, m.q, topP];
+                }),
+                theme: 'striped', headStyles: { fillColor: [37, 99, 235] }, styles: { fontSize: 8 }
+            });
+
+            sortedMonths.forEach((key) => {
+                doc.addPage();
+                const [y, m] = key.split('-');
+                const mon = reportData.monthly[key];
+
+                doc.setFillColor(37, 99, 235); doc.rect(0, 0, 210, 15, 'F');
+                doc.setTextColor(255, 255, 255); doc.setFontSize(11); 
+                doc.text(`DETAIL PERFORMA OPERASIONAL: ${monthNames[parseInt(m)-1].toUpperCase()} ${y}`, 14, 10);
+
+                const sortedPMon = Object.entries(mon.products).sort((a,b) => b[1] - a[1]);
+                
+                doc.autoTable({
+                    startY: 20, head: [['Top 3 Produk Terlaris', 'Volume']], 
+                    body: sortedPMon.slice(0, 3).map(p => [p[0], `${p[1]} Unit`]),
+                    headStyles: { fillColor: [16, 185, 129] }, theme: 'striped', margin: { right: 110 }
+                });
+                doc.autoTable({
+                    startY: 20, head: [['3 Produk Penjualan Rendah', 'Volume']], 
+                    body: sortedPMon.slice(-3).reverse().map(p => [p[0], `${p[1]} Unit`]),
+                    headStyles: { fillColor: [225, 29, 72] }, theme: 'striped', margin: { left: 110 }
+                });
+
+                const totalMonT = mon.transSet.size;
+                doc.autoTable({
+                    startY: doc.lastAutoTable.finalY + 10, head: [['Kategori Produk (By Transaksi)', 'Nota', 'Kontribusi (%)']], 
+                    body: Object.entries(mon.cats).sort((a,b)=>b[1]-a[1]).map(([k,v]) => [k, v, `${((v/totalMonT)*100).toFixed(2)}%`]),
+                    headStyles: { fillColor: [59, 130, 246] }
+                });
+
+                doc.autoTable({
+                    startY: doc.lastAutoTable.finalY + 8, head: [['Saluran Penjualan', 'Nota', '%']], 
+                    body: Object.entries(mon.chans).sort((a,b)=>b[1]-a[1]).map(([k,v]) => [k, v, `${((v/totalMonT)*100).toFixed(2)}%`]),
+                    headStyles: { fillColor: [16, 185, 129] }, margin: { right: 110 }
+                });
+
+                doc.autoTable({
+                    startY: doc.previousAutoTable.startY, head: [['Metode Pembayaran', 'Nota', '%']], 
+                    body: Object.entries(mon.meths).sort((a,b)=>b[1]-a[1]).map(([k,v]) => [k, v, `${((v/totalMonT)*100).toFixed(2)}%`]),
+                    headStyles: { fillColor: [245, 158, 11] }, margin: { left: 110 }
+                });
+            });
+
+            doc.addPage();
+            doc.setFillColor(30, 41, 59); doc.rect(0, 0, 210, 20, 'F');
+            doc.setTextColor(255, 255, 255); doc.setFontSize(14); doc.text("10 INSIGHT & REKOMENDASI STRATEGIS", 14, 13);
+            doc.setTextColor(30, 41, 59); doc.setFontSize(10);
+            const insightText = reportData.aiInsight || "Silakan klik tombol 'Generate Strategic Insights' di dashboard.";
+            doc.text(doc.splitTextToSize(insightText.replace(/\*/g, ''), 180), 14, 30);
+
+            doc.save(`Laporan_Eksekutif_Growthlytics.pdf`);
+        });
+
+        document.getElementById('refreshBtn').addEventListener('click', loadData);
+        document.getElementById('askAiBtn').addEventListener('click', generateAiInsight);
+        window.onload = loadData;
+    </script>
+</body>
+</html>
